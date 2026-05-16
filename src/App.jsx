@@ -314,7 +314,7 @@ function SettingsTab({ achievements, setAchievements, sheetUrl, setSheetUrl }) {
   });
 })();
 setAchievements(merged);
-try { await window.storage.set("din_achievements", JSON.stringify(merged)); } catch {}
+try { localStorage.setItem("din_achievements", JSON.stringify(merged)); } catch {}
       setSheetUrl(urlInput.trim());
       setSyncStatus({ type: "success", msg: `Загружено ${sheetAchs.length} достижений из таблицы. Уже разблокированные сохранены.` });
     } catch (e) {
@@ -438,35 +438,29 @@ export default function App() {
 
   // Load from storage
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await window.storage.get("din_achievements");
-        const urlRes = await window.storage.get("din_sheet_url").catch(() => null);
-        if (res?.value) setAchievements(JSON.parse(res.value));
-        else setAchievements(SEED_ACHIEVEMENTS);
-        if (urlRes?.value) setSheetUrl(urlRes.value);
-      } catch {
-        setAchievements(SEED_ACHIEVEMENTS);
-      }
-      setLoaded(true);
-    })();
-  }, []);
+  try {
+    const saved = localStorage.getItem("din_achievements");
+    const savedUrl = localStorage.getItem("din_sheet_url");
+    if (saved) setAchievements(JSON.parse(saved));
+    else setAchievements(SEED_ACHIEVEMENTS);
+    if (savedUrl) setSheetUrl(savedUrl);
+  } catch {
+    setAchievements(SEED_ACHIEVEMENTS);
+  }
+  setLoaded(true);
+}, []);
 
   // Save achievements to storage
   useEffect(() => {
-    if (!loaded) return;
-    (async () => {
-      try { await window.storage.set("din_achievements", JSON.stringify(achievements)); } catch {}
-    })();
-  }, [achievements, loaded]);
+  if (!loaded) return;
+  try { localStorage.setItem("din_achievements", JSON.stringify(achievements)); } catch {}
+}, [achievements, loaded]);
 
   // Save sheet URL to storage
   useEffect(() => {
-    if (!loaded || !sheetUrl) return;
-    (async () => {
-      try { await window.storage.set("din_sheet_url", sheetUrl); } catch {}
-    })();
-  }, [sheetUrl, loaded]);
+  if (!loaded || !sheetUrl) return;
+  try { localStorage.setItem("din_sheet_url", sheetUrl); } catch {}
+}, [sheetUrl, loaded]);
 
   const totalXP = achievements.filter(a => a.unlocked).reduce((sum, a) => {
     const rar = RARITY.find(r => r.id === a.rarity);
