@@ -305,14 +305,16 @@ function SettingsTab({ achievements, setAchievements, sheetUrl, setSheetUrl }) {
         return;
       }
       // Merge: keep unlocked status for matching titles, add new ones
-      setAchievements(prev => {
-        const unlockedMap = {};
-        prev.forEach(a => { if (a.unlocked) unlockedMap[a.title.toLowerCase()] = a; });
-        return sheetAchs.map(a => {
-          const existing = unlockedMap[a.title.toLowerCase()];
-          return existing ? { ...a, id: existing.id, unlocked: existing.unlocked, date: existing.date } : a;
-        });
-      });
+      const merged = (() => {
+  const unlockedMap = {};
+  achievements.forEach(a => { if (a.unlocked) unlockedMap[a.title.toLowerCase()] = a; });
+  return sheetAchs.map(a => {
+    const existing = unlockedMap[a.title.toLowerCase()];
+    return existing ? { ...a, id: existing.id, unlocked: existing.unlocked, date: existing.date } : a;
+  });
+})();
+setAchievements(merged);
+try { await window.storage.set("din_achievements", JSON.stringify(merged)); } catch {}
       setSheetUrl(urlInput.trim());
       setSyncStatus({ type: "success", msg: `Загружено ${sheetAchs.length} достижений из таблицы. Уже разблокированные сохранены.` });
     } catch (e) {
