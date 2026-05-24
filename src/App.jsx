@@ -77,17 +77,21 @@ async function fetchSheetData(sheetId) {
     const validCategory = CATEGORIES.find(c => c.id === rawCategory) ? rawCategory : "other";
     const validRarity = RARITY.find(r => r.id === rawRarity) ? rawRarity : "common";
     const rar = RARITY.find(r => r.id === validRarity);
-    achievements.push({
-      id: `sheet_${i}_${Date.now()}`,
-      title,
-      desc: get(1),
-      category: validCategory,
-      rarity: validRarity,
-      reward: get(4),
-      xp: rar.xp,
-      unlocked: false,
-      date: null,
-    });
+    const isUnlocked = get(5).toUpperCase() === "TRUE";
+const requires = get(6) || null;
+achievements.push({
+  id: `sheet_${i}_${Date.now()}`,
+  title,
+  desc: get(1),
+  category: validCategory,
+  rarity: validRarity,
+  reward: get(4),
+  xp: rar.xp,
+  unlocked: isUnlocked,
+  date: isUnlocked ? new Date().toLocaleDateString("ru-RU") : null,
+  requires,
+});
+
   });
   return achievements;
 }
@@ -306,13 +310,21 @@ function SettingsTab({ achievements, setAchievements, sheetUrl, setSheetUrl }) {
       }
       // Merge: keep unlocked status for matching titles, add new ones
       const merged = (() => {
-  const unlockedMap = {};
-  achievements.forEach(a => { if (a.unlocked) unlockedMap[a.title.toLowerCase()] = a; });
-  return sheetAchs.map(a => {
-    const existing = unlockedMap[a.title.toLowerCase()];
-    return existing ? { ...a, id: existing.id, unlocked: existing.unlocked, date: existing.date } : a;
-  });
-})();
+        const unlockedMap = {};
+        achievements.forEach(a => { if (a.unlocked) unlockedMap[a.title.toLowerCase()] = a; });
+        return sheetAchs.map(a => {
+          const existing = unlockedMap[a.title.toLowerCase()];
+          // Если в таблице TRUE или уже разблокировано в приложении — сохраняем
+          const wasUnlocked = existing?.unlocked || false;
+          const isUnlocked = a.unlocked || wasUnlocked;
+          return {
+            ...a,
+            id: existing?.id || a.id,
+            unlocked: isUnlocked,
+            date: isUnlocked ? (existing?.date || new Date().toLocaleDateString("ru-RU")) : null,
+          };
+        });
+      })();
 setAchievements(merged);
 try { localStorage.setItem("din_achievements", JSON.stringify(merged)); } catch {}
       setSheetUrl(urlInput.trim());
@@ -472,6 +484,10 @@ export default function App() {
   const unlock = (id) => {
     const ach = achievements.find(a => a.id === id);
     if (!ach || ach.unlocked) return;
+    if (ach.requires) {
+      const req = achievements.find(a => a.title.toLowerCase() === ach.requires.toLowerCase());
+      if (req && !req.unlocked) return;
+    }
     setAchievements(prev => prev.map(a =>
       a.id === id ? { ...a, unlocked: true, date: new Date().toLocaleDateString("ru-RU") } : a
     ));
@@ -589,10 +605,18 @@ export default function App() {
                   <span style={S.xpBadge}>+{rar.xp} XP</span>
                 </div>
                 {ach.reward && <div style={S.reward}><span>🎁</span><span>{ach.reward}</span></div>}
-                {ach.unlocked
-                  ? <div style={{ fontSize: 11, color: "rgba(200,169,110,0.5)", marginTop: 8, textAlign: "right" }}>✓ Получено {ach.date}</div>
-                  : <button style={S.unlockBtn(rar)} onClick={() => unlock(ach.id)}>🏆 Разблокировать</button>
-                }
+                {ach.unlocked ? (
+  <div style={{ fontSize: 11, color: "rgba(200,169,110,0.5)", marginTop: 8, textAlign: "right" }}>✓ Получено {ach.date}</div>
+) : (() => {
+  const isBlocked = ach.requires && !achievements.find(a => a.title.toLowerCase() === ach.requires?.toLowerCase())?.unlocked;
+  return isBlocked ? (
+    <div style={{ fontSize: 11, color: "rgba(232,228,218,0.3)", marginTop: 10, padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)" }}>
+      🔗 Сначала выполни: <span style={{ color: "rgba(200,169,110,0.5)" }}>{ach.requires}</span>
+    </div>
+  ) : (
+    <button style={S.unlockBtn(rar)} onClick={() => unlock(ach.id)}>🏆 Разблокировать</button>
+  );
+})()}
               </div>
             );
           })}
