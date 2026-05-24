@@ -67,7 +67,6 @@ async function fetchSheetData(sheetId) {
   const rows = data.table?.rows || [];
   const achievements = [];
   rows.forEach((row, i) => {
-    if (i === 0) return; // skip header row if present
     const cells = row.c || [];
     const get = (idx) => cells[idx]?.v?.toString().trim() || "";
     const title = get(0);
